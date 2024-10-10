@@ -1,0 +1,12 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ndarray = { version = "0.15.0", features = ["serde"]}
+numpy = { version = "0.21.0"}
+
+[dependencies.pyo3]
+version = "0.21.0"
+features = ["auto-initialize"]

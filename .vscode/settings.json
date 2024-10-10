@@ -1,0 +1,17 @@
+{
+    "cSpell.words": [
+        "bufread",
+        "dummyadmin",
+        "flate",
+        "getattr",
+        "Minio",
+        "numpy",
+        "tempdir",
+        "tempfile"
+    ],
+    "python.testing.pytestArgs": [
+        "-s", "src-py"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}

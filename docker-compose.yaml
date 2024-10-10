@@ -1,0 +1,11 @@
+services:
+    rust-pyo3-mpsc-integration:
+      image: rust-pyo3-mpsc-integration
+      build:
+        context: .
+        dockerfile: dockerfile.dev
+      volumes:
+        - ./:/app
+      working_dir: /app
+      platform: linux/amd64
+      tty: true

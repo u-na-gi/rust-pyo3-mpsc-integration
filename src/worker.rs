@@ -93,12 +93,12 @@ mod tests {
 
     #[test]
     fn test_python_heavy_computation() {
-        // PyWorkerの初期化
+        // Initialize PyWorker
         let worker = PyWorker::new().expect("Failed to create PyWorker");
 
-        // Pythonのタスクを実行
+        // Execute the Python task
         let task = Box::new(|_: Python, module: &Bound<'_, PyModule>| {
-            // "heavy_computation" Python関数を呼び出し、size = 3 の行列を作成
+            // Call the Python function "heavy_computation" and create a matrix with a size determined by the sample_size parameter
             let result: &PyArray2<f64> = module
                 .getattr("heavy_computation")
                 .unwrap()
@@ -109,32 +109,32 @@ mod tests {
 
             println!("result: &PyArray2<f64> =  -> {:?}", result);
 
-            // 結果をRustの配列に変換して返す
+            // Convert the result to a Rust array and return
             result.to_owned_array()
         });
 
-        // タスクの送信と結果の受信
+        // Send the task and receive the result
         let receiver = worker.run_task(task);
         let result = receiver
             .recv()
             .expect("Failed to receive result from worker");
 
-        // 結果が行列であるか確認し、少なくとも1つの値が存在するか確認
+        // Verify that the result is a matrix and that at least one value exists
         assert!(!result.is_empty());
 
-        // 結果を確認する（サイズや範囲チェックなど）
+        // Verify the result (e.g., size or range checks)
         println!("Received result from Python: {:?}", result);
     }
 
     #[test]
     fn test_worker_auto_stop_on_drop() {
         {
-            // PyWorkerの初期化
+            // Initialize PyWorker
             let worker = PyWorker::new().expect("Failed to create PyWorker");
 
-            // Pythonのタスクを実行
+            // Execute the Python task
             let task = Box::new(|_: Python, module: &Bound<'_, PyModule>| {
-                // Python関数 heavy_computation を呼び出す
+                // Call the Python function "heavy_computation"
                 let result: &PyArray2<f64> = module
                     .getattr("heavy_computation")
                     .unwrap()
@@ -145,17 +145,17 @@ mod tests {
                 result.to_owned_array()
             });
 
-            // タスクの送信と結果の受信
+            // Send the task and receive the result
             let receiver = worker.run_task(task);
             let result = receiver
                 .recv()
                 .expect("Failed to receive result from worker");
 
-            // 結果を確認
+            // Verify the result
             assert!(!result.is_empty());
-        } // PyWorkerがスコープを抜けるとDropが呼ばれ、スレッドが停止する
+        } // When PyWorker goes out of scope, Drop is called, and the thread is stopped
 
-        // PyWorkerがスコープを抜けた後、スレッドが終了しているか確認
+        // Check that the worker thread has stopped after PyWorker goes out of scope
         println!("Worker thread should have stopped upon exiting the scope.");
     }
 }

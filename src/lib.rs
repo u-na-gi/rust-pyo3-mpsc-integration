@@ -15,9 +15,9 @@ mod tests {
     fn create_heavy_task(
         sample_size: i32,
     ) -> Box<dyn FnOnce(Python, &Bound<'_, PyModule>) -> Array2<f64> + Send> {
-        // Pythonのタスクを実行
+        // Execute the Python task
         let task = Box::new(move |_: Python, module: &Bound<'_, PyModule>| {
-            // "heavy_computation" Python関数を呼び出し、size = 3 の行列を作成
+            // Call the Python function "heavy_computation" and create a matrix with a size determined by the sample_size parameter
             let result: &PyArray2<f64> = module
                 .getattr("heavy_computation")
                 .unwrap()
@@ -28,13 +28,14 @@ mod tests {
 
             println!("result: &PyArray2<f64> =  -> {:?}", result);
 
-            // 結果をRustの配列に変換して返す
+            // Convert the result to a Rust array and return
             result.to_owned_array()
         });
 
         task
     }
 
+    // Simulates a heavy computational task in Rust by performing a large loop. This is for demonstration purposes.
     fn my_other_task() -> i32 {
         let mut res = 1;
         for i in 0..1000000000 {
@@ -46,19 +47,18 @@ mod tests {
 
     #[test]
     fn test_manager() {
-        let worker = PyWorker::new().expect("fail initialization.");
+        let worker = PyWorker::new().expect("Failed to initialize.");
         let task = create_heavy_task(100000);
 
-        println!("run heavy task");
+        println!("Run heavy task");
         let start = Instant::now();
         let receiver = worker.run_task(task);
-        // 経過時間を計算
+        // Calculate and display the elapsed time to verify that the task proceeds without blocking
         let duration = start.elapsed();
-        // 処理結果と経過時間を表示
-        // およそ41.422µsなので、ブロックしないで先に進んでいることがわかる
+
         println!("PyWorker Time elapsed: {:?}", duration);
 
-        println!("rustで先に進めたい処理。");
+        println!("Processing in Rust that needs to continue ahead.");
         let _ = my_other_task();
         println!("my_other_task success.");
 
@@ -66,10 +66,10 @@ mod tests {
             .recv()
             .expect("Failed to receive result from worker");
 
-        // 結果が行列であるか確認し、少なくとも1つの値が存在するか確認
+        // Verify that the result is a matrix and that at least one value exists
         assert!(!result.is_empty());
 
-        // 結果を確認する（サイズや範囲チェックなど）
+        // Verify the result (e.g., size or range checks)
         println!("Received result from Python: {:?}", result);
     }
 }

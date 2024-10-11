@@ -12,7 +12,7 @@ def heavy_computation(size):
     print(f"Generating a random array of size {size}x{2}...")
     data = np.random.rand(size, 2)
     print("Array generated.", data.shape)
-    time.sleep(1)  # Simulating a heavy task taking 1 seconds
+    time.sleep(5)  # Simulating a heavy task taking 5 seconds
     
     print("Heavy computation in Python complete.")
     return data

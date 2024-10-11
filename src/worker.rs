@@ -38,14 +38,6 @@ impl PyWorker {
                 let activators =
                     PyModule::from_code_bound(py, py_code, "from_rust.py", "from_rust").unwrap();
 
-                // Call the Python function
-                // let result: f64 = activators
-                //     .getattr("my_numpy_function")
-                //     .unwrap()
-                //     .call1((5.0,))
-                //     .unwrap()
-                //     .extract()
-                //     .unwrap();
                 loop {
                     if let Ok(_) = stop_rx.try_recv() {
                         println!("Shutting down Python thread.");

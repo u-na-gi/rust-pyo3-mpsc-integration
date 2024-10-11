@@ -1,74 +1,75 @@
 pub mod worker;
 
-use pyo3::prelude::*;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
+#[cfg(test)]
+mod tests {
+    use std::time::Instant;
 
-/// Call a Python function that performs heavy initialization with NumPy
-fn heavy_numpy_initialization(py: Python) -> PyResult<()> {
-    // Use include_str! to embed the Python file's content at build time
-    let py_code = include_str!("/app/src-py/from_rust.py");
+    use pyo3::prelude::*;
 
-    // Execute the Python code as a module
-    let activators = PyModule::from_code_bound(py, py_code, "from_rust.py", "from_rust").unwrap();
+    use ndarray::Array2;
+    use numpy::PyArray2;
+    use worker::PyWorker;
 
-    // Simulate heavy initialization or computation with a large random array
-    let result: f64 = activators
-        .getattr("heavy_computation")
-        .unwrap()
-        .call1((10000,))
-        .unwrap()
-        .extract()
-        .unwrap();
+    use super::*;
 
-    println!("{}", result);
+    fn create_heavy_task(
+        sample_size: i32,
+    ) -> Box<dyn FnOnce(Python, &Bound<'_, PyModule>) -> Array2<f64> + Send> {
+        // Pythonのタスクを実行
+        let task = Box::new(move |_: Python, module: &Bound<'_, PyModule>| {
+            // "heavy_computation" Python関数を呼び出し、size = 3 の行列を作成
+            let result: &PyArray2<f64> = module
+                .getattr("heavy_computation")
+                .unwrap()
+                .call1((sample_size,))
+                .unwrap()
+                .extract()
+                .unwrap();
 
-    Ok(())
-}
+            println!("result: &PyArray2<f64> =  -> {:?}", result);
 
-/// Function to manage heavy Python computations and run other tasks concurrently in Rust
-pub fn process_data_in_parallel() {
-    let (tx, rx) = mpsc::channel();
-
-    // Spawn a thread to handle the heavy Python computation
-    let tx_clone = tx.clone();
-    let python_thread = thread::spawn(move || {
-        Python::with_gil(|py| {
-            // Simulate a heavy NumPy computation that takes time
-            heavy_numpy_initialization(py).expect("Failed to execute heavy NumPy computation");
-
-            // Notify Rust that the heavy computation is done
-            tx_clone
-                .send("Python computation complete")
-                .expect("Failed to send data");
+            // 結果をRustの配列に変換して返す
+            result.to_owned_array()
         });
-    });
 
-    // Main thread doing other Rust work while Python computation is running
-    println!("Rust is performing other tasks while waiting for Python...");
-
-    // Simulate Rust doing some other work
-    for i in 0..5 {
-        println!("Rust is processing task {}", i);
-        thread::sleep(Duration::from_secs(1));
+        task
     }
 
-    // Wait for the message from the Python computation
-    let message = rx.recv().unwrap();
-    println!("{}", message);
+    fn my_other_task() -> i32 {
+        let mut res = 1;
+        for i in 0..1000000000 {
+            res = i * res;
+        }
 
-    // Ensure the Python thread has finished
-    python_thread.join().unwrap();
+        res
+    }
+
+    #[test]
+    fn test_manager() {
+        let worker = PyWorker::new().expect("fail initialization.");
+        let task = create_heavy_task(100000);
+
+        println!("run heavy task");
+        let start = Instant::now();
+        let receiver = worker.run_task(task);
+        // 経過時間を計算
+        let duration = start.elapsed();
+        // 処理結果と経過時間を表示
+        // およそ41.422µsなので、ブロックしないで先に進んでいることがわかる
+        println!("PyWorker Time elapsed: {:?}", duration);
+
+        println!("rustで先に進めたい処理。");
+        let _ = my_other_task();
+        println!("my_other_task success.");
+
+        let result = receiver
+            .recv()
+            .expect("Failed to receive result from worker");
+
+        // 結果が行列であるか確認し、少なくとも1つの値が存在するか確認
+        assert!(!result.is_empty());
+
+        // 結果を確認する（サイズや範囲チェックなど）
+        println!("Received result from Python: {:?}", result);
+    }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn test_process_data_in_parallel() {
-//         process_data_in_parallel();
-//         // The main test here is that the function completes without blocking Rust's work
-//     }
-// }
